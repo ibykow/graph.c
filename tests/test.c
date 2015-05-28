@@ -48,7 +48,6 @@ int main(int argc, char const *argv[])
     init_random();
 
     test_init(UNIT_DEFAULT_NUM_ROUNDS);
-
     test(unit);
 
     test_pre(graph);
