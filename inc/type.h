@@ -1,7 +1,9 @@
 #ifndef TYPE_H
 #define TYPE_H
 
-#define type_new(tname, ...) tname->new(&(tname##_t){__VA_ARGS__})
+#define type_sort(tname, arr, len) qsort(arr, len, tname->size, tname->diff)
+
+#define type_new(tname, ...) (tname##_t *) tname->new(&(tname##_t){__VA_ARGS__})
 #define type_free(tname, v) tname->free(v)
 #define type_diff(tname, a, b) tname->diff(a, b)
 
@@ -33,7 +35,7 @@
 typedef void *(*new_fn)(const void *);
 typedef void (*free_fn)(void *);
 typedef int (*diff_fn)(const void *, const void *);
-typedef void (*to_str_fn)(const void *, char *s, size_t len);
+typedef void (*to_str_fn)(const void *, char *, size_t);
 
 typedef const struct type_s {
     size_t size;

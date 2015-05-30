@@ -28,7 +28,7 @@ static int type_diff_fn(name)(const void *a, const void *b)                 \
     if(!a || !b)                                                            \
         return -100;                                                        \
                                                                             \
-    return *(type *) a - *(type *) b;                                       \
+    return (int) *(type *) a - *(type *) b;                                 \
 }                                                                           \
                                                                             \
 static void type_to_str_fn(name)(const void *d, char *dest, size_t len)     \

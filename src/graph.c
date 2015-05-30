@@ -1,25 +1,72 @@
 #include "common.h"
 
-static void edge_print_i(void *v)
+#define edge_new(gr, ty, or, in, we) \
+    type_new(Edge, .g = gr, .t = ty, .o = or, .i = in, 0, .w = we)
+
+void edge_print_i(void *v)
 {
-    printf("->%lu", ((struct edge_s *) v)->i);
+    Edge_t *e = (Edge_t *) v;
+
+    char s[101];
+    e->t->to_str(e->w, s, 101);
+
+    printf("->%lu(%s) ", e->i, s);
 }
 
-static struct edge_s *edge_new(size_t i, void *w)
+static void *type_new_fn(Edge)(const void *raw)
 {
-    failloc(struct edge_s, e);
+    if(!raw)
+        return 0;
 
-    e->i = i;
-    e->w = w;
-    e->next = 0;
+    failloc(Edge_t, e);
 
-    return e;
+    *e = *(Edge_t *) raw;
+
+    return (void *) e;
 }
 
-static void edge_for_each(struct edge_s *e, iter_fn iter, bool value)
+static void type_free_fn(Edge)(void *d)
+{
+    if(!d)
+        return;
+
+    Edge_t *e = (Edge_t *) d, *next;
+    while(e) {
+        next = e->next;
+        free(e);
+        e = next;
+    }
+}
+
+static int type_diff_fn(Edge)(const void *a, const void *b)
+{
+    if(a == b)
+        return 0;
+
+    if(!a || !b)
+        return -1;
+
+    Edge_t *ea = (Edge_t *) a, *eb = (Edge_t *) b;
+
+    if(ea->t != eb->t)
+        return -1;
+
+    return ea->t->diff(ea->w, eb->w);
+}
+
+static void type_to_str_fn(Edge)(const void *d, char *s, size_t len)
+{
+    if(!d)
+        return;
+
+    Edge_t *e = (Edge_t *) d;
+    e->t->to_str(e->w, s, len);
+}
+
+static void edge_for_each(Edge_t *e, iter_fn iter, bool value)
 {
     while(e) {
-        struct edge_s *next = e->next;
+        Edge_t *next = e->next;
         iter(value ? e->w : e);
         e = next;
     }
@@ -27,13 +74,13 @@ static void edge_for_each(struct edge_s *e, iter_fn iter, bool value)
 
 static bool graph_resize(struct graph_s *g, size_t len)
 {
-    struct edge_s **edges = (struct edge_s **)
-        realloc(g->edges, sizeof(struct edge_s *) * len);
+    Edge_t **edges = (Edge_t **)
+        realloc(g->edges, sizeof(Edge_t *) * len);
 
     if(len && !edges)
         return false;
 
-    void **verts = (void **) malloc(sizeof(void *) * len);
+    void *verts = (void *) malloc(sizeof(void *) * len);
 
     if(len && !verts) {
         free(edges);
@@ -44,7 +91,7 @@ static bool graph_resize(struct graph_s *g, size_t len)
     g->verts = verts;
 
     if(len > g->len) {
-        memset(g->edges + g->len, 0, len * sizeof(struct edge_s *));
+        memset(g->edges + g->len, 0, len * sizeof(Edge_t *));
         memset(g->verts + g->len, 0, len * sizeof(void *));
     }
 
@@ -69,9 +116,7 @@ struct graph_s *graph_new(void *data, size_t size, size_t len,
         return 0;
     }
 
-    unsigned i, max = len * size;
-    for(i = 0; i < max; i += size)
-        g->verts[i] = (char *) data + i;
+    memcpy(g->verts, data, size * len);
 
     return g;
 }
@@ -94,7 +139,8 @@ bool graph_connect(struct graph_s *g, size_t i, size_t d, void *w)
     if(!g || (i >= g->len))
         return false;
 
-    struct edge_s *new = edge_new(d, w);
+    Edge_t *new = edge_new(g, g->edge_type, i, d, w);
+
     if(!g->edges[i]) {
         g->edges[i] = new;
         return true;
@@ -106,7 +152,7 @@ bool graph_connect(struct graph_s *g, size_t i, size_t d, void *w)
         return true;
     }
 
-    struct edge_s *e = g->edges[i];
+    Edge_t *e = g->edges[i];
     while(e) {
         if(e->i == d) {
             free(new);
@@ -127,6 +173,22 @@ bool graph_connect(struct graph_s *g, size_t i, size_t d, void *w)
     return true;
 }
 
+bool graph_has_edge(struct graph_s *g, size_t o, size_t i)
+{
+    if(!g || (g->len <= o) || !g->edges[o])
+        return false;
+
+    Edge_t *e = g->edges[o];
+    while(e) {
+        if(e->i == i)
+            return true;
+
+        e = e->next;
+    }
+
+    return false;
+}
+
 void graph_for_each_edge(struct graph_s *g, iter_fn iter, bool value)
 {
     if(!g || !iter)
@@ -137,7 +199,7 @@ void graph_for_each_edge(struct graph_s *g, iter_fn iter, bool value)
         edge_for_each(g->edges[i], iter, value);
 }
 
-void graph_random_edges(struct graph_s *g, size_t max)
+void graph_random_int_edges(struct graph_s *g, size_t max)
 {
     if(!g)
         return;
@@ -156,7 +218,7 @@ void graph_print(struct graph_s *g)
 
     for(i = 0; i < g->len; i++) {
         char vert_str[101];
-        g->vert_type->to_str(g->verts[i], vert_str, 101);
+        g->vert_type->to_str(g->verts + i, vert_str, 101);
 
         printf("[%lu]\t%s ", i, vert_str);
         edge_for_each(g->edges[i], edge_print_i, false);
@@ -165,3 +227,23 @@ void graph_print(struct graph_s *g)
 
     printf("\n");
 }
+
+void graph_to_matrix(struct graph_s *g, Edge_t **m)
+{
+    if(!g || !g->len || !m)
+        return;
+
+    size_t i;
+    memset(m, 0, sizeof(*m) * g->len * g->len);
+
+    for(i = 0; i < g->len; i++) {
+        Edge_t *e = g->edges[i];
+        size_t offs = i * g->len;
+        while(e) {
+            m[offs + e->i] = e;
+            e = e->next;
+        }
+    }
+}
+
+type_define(Edge);

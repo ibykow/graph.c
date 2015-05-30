@@ -14,7 +14,7 @@ unit_test(unit)
 unit_test_pre(graph)
 {
     g = graph_new(gstr, sizeof(char), strlen(gstr), Char, Int);
-    graph_random_edges(g, TEST_NUM_GRAPH_EDGES);
+    graph_random_int_edges(g, TEST_NUM_GRAPH_EDGES);
 }
 
 unit_test_post(graph)
@@ -31,7 +31,35 @@ unit_test(new)
         strlen(gstr), g->len);
 }
 
-unit_test(new_int)
+unit_test(matrix)
+{
+    size_t i;
+    Edge_t *m[g->len][g->len], *e;
+
+    graph_to_matrix(g, (Edge_t **) m);
+
+    for(i = 0; i < g->len; i++) {
+        e = g->edges[i];
+        while(e) {
+            pass(edge, m[i][e->i], "should exist between %lu and %lu",
+                i, e->i);
+
+            pass(connection, (m[i][e->i]->o == i) &&  (m[i][e->i]->i == e->i),
+                "between %lu and %lu should be between %lu and %lu",
+                m[i][e->i]->o, m[i][e->i]->i, i, e->i);
+
+            pass(type, m[i][e->i]->t == e->t, "%s should be %s",
+                m[i][e->i]->t->name, e->t->name);
+
+            pass(w, m[i][e->i]->w == e->w, "%p should be %p",
+                m[i][e->i]->t, e->t);
+
+            e = e->next;
+        }
+    }
+}
+
+unit_test(int)
 {
     int n = 38;
     void *v = type_new(Int, 38);
@@ -43,6 +71,26 @@ unit_test(new_int)
     type_free(Int, v);
 }
 
+unit_test(char)
+{
+    char src[] = "ecdfabg", expected[] = "abcdefg";
+    type_sort(Char, src, strlen(src));
+    pass(sort, !strncmp(src, expected, strlen(src)), "%s should be %s",
+        src, expected);
+}
+
+unit_test(index)
+{
+    char arr[0x100];
+    int i;
+    for(i = 0; i <= 0xFF; i++)
+        arr[i] = '1' + (i % 10);
+
+    for(i = -1; i >= -0xFF; i--)
+        pass(bounds, arr[(unsigned char) i] == arr[0x100 + i],
+            "%d '%c' should be '%c'", i, arr[(unsigned char) i], arr[0x100 + i]);
+}
+
 int main(int argc, char const *argv[])
 {
     init_random();
@@ -50,12 +98,14 @@ int main(int argc, char const *argv[])
     test_init(UNIT_DEFAULT_NUM_ROUNDS);
     test(unit);
 
+    test(index);
+    test(char);
+    test(int);
+
     test_pre(graph);
     test(new);
-    // graph_print(g);
+    test(matrix);
     test_post(graph);
-
-    test(new_int);
 
     return 0;
 }
