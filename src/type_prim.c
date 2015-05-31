@@ -39,6 +39,13 @@ static void type_to_str_fn(name)(const void *d, char *dest, size_t len)     \
     snprintf(dest, len, #fmt, *(type *) d);                                 \
 }                                                                           \
                                                                             \
+static void type_print_fn(name)(void *v)                                    \
+{                                                                           \
+    if(!v)                                                                  \
+        return;                                                             \
+    printf(#fmt " ", *(type *) v);                                          \
+}                                                                           \
+                                                                            \
 type_def(name, type)
 
 type_prim_def(Char, char, %c);

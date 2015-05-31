@@ -1,7 +1,7 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-typedef void (*iter_fn)(void *);
+#include "type.h"
 
 #define graph_at(g, i) (i < g->num ? g->verts[i] : 0)
 #define graph_print_matrix(gp, m) graph_fprint_matrix(gp, m, stdout)

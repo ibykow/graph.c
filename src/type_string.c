@@ -63,4 +63,12 @@ static void type_to_str_fn(String)(const void *data, char *dest, size_t len)
     snprintf(dest, len, "%s", s->buf);
 }
 
+static void type_print_fn(String)(void *v)
+{
+    if(!v)
+        return;
+        
+    printf("%s ", ((String_t *) v)->buf);
+}
+
 type_define(String);

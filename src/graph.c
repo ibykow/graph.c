@@ -63,6 +63,15 @@ static void type_to_str_fn(Edge)(const void *d, char *s, size_t len)
     e->t->to_str(e->w, s, len);
 }
 
+static void type_print_fn(Edge)(void *v)
+{
+    if(!v)
+        return;
+
+    Edge_t *e = (Edge_t *) v;
+    e->t->print(e->w);
+}
+
 static void edge_for_each(Edge_t *e, iter_fn iter, bool value)
 {
     while(e) {

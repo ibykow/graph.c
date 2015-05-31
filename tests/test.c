@@ -5,6 +5,7 @@
 
 static char gstr[] = "Hello, World!";
 static struct graph_s *g = 0;
+static struct list_s *bt = 0;
 
 unit_test(unit)
 {
@@ -91,6 +92,107 @@ unit_test(index)
             "%d '%c' should be '%c'", i, arr[(unsigned char) i], arr[0x100 + i]);
 }
 
+unit_test_pre(bt)
+{
+    bt = bt_new();
+}
+
+unit_test(bt_new)
+{
+    pass(new, bt, "should exist");
+}
+
+static unsigned long bt_nodes_count = 0;
+unit_test(insert)
+{
+    int n = 100, i;
+
+    if(bt_sinsrt(bt, 0, Int, &n))
+        bt_nodes_count++;
+
+    pass(insert, bt->data[0], "should exist");
+    pass(type, !type_diff(Int, bt->data[0], &n), "%d should equal %d",
+        *(Int_t *) bt->data[0], n);
+
+    for(i = 0; i < (n << 10); i++)
+        if(bt_sinsrt(bt, 0, Int, type_cast(Int, ur(n << 3) - (n << 2))))
+            bt_nodes_count++;
+}
+
+static int prev_int = 0;
+static bool check_ascend;
+
+static void check_ascend_init(int n)
+{
+    prev_int = n;
+    check_ascend = true;
+}
+
+static void check_ascend_iter(void *v)
+{
+    if(*(int *) v < prev_int)
+        check_ascend = false;
+
+    prev_int = *(int *) v;
+}
+
+unit_test(traverse)
+{
+    check_ascend_init(*(int *) bt_extreme(bt, BT_LEFT)->data[BT_VALUE]);
+    unsigned long count = bt_traverse(bt, BT_IN_ORDER, check_ascend_iter);
+
+    pass(ascend, check_ascend, "bst out of order");
+    pass(count, count == bt_nodes_count, "%lu should be %lu (off by %ld)",
+        count, bt_nodes_count, (long) count - bt_nodes_count);
+}
+
+unit_test(remove)
+{
+    enum bt_dir_e expect_dir;
+    unsigned long n_count, count, new_count;
+    struct list_s *n = (struct list_s *) bt->data[BT_LEFT], *rep, *expect;
+    n = (struct list_s *) n->data[BT_RIGHT];
+    pass(node, n, "should exist (but, statistically possible that it doesn't)");
+
+    if(!n) {
+        printf("Please run the tests again.");
+        return;
+    }
+
+    n_count = *(unsigned long *) n->data[BT_COUNT];
+
+    expect_dir = n->data[BT_LEFT] ? BT_LEFT : BT_RIGHT;
+
+    expect = (struct list_s *) n->data[expect_dir];
+
+    check_ascend_init(*(int *) bt_extreme(bt, BT_LEFT)->data[BT_VALUE]);
+
+    count = bt_traverse(n, BT_IN_ORDER, check_ascend_iter);
+
+    pass(ascend, check_ascend, "bst out of order");
+
+    rep = bt_remove(n);
+
+    pass(replacement, rep == expect, "%p should be %p (%s)",
+        rep, expect, bt_dir_names[expect_dir]);
+
+    check_ascend_init(*(int *) bt_extreme(bt, BT_LEFT)->data[BT_VALUE]);
+    new_count = bt_traverse(rep, BT_IN_ORDER, check_ascend_iter);
+    pass(ascend, check_ascend, "bst out of order");
+    pass(count, new_count == (count - n_count), "%lu should be %lu (off by %ld)",
+        new_count, count - n_count, (long) new_count - count - n_count);
+
+    new_count = bt_count(n);
+    pass(n_count, new_count == n_count, "%lu should be %lu", new_count, n_count);
+
+    bt_free(n, Int->free);
+}
+
+unit_test_post(bt)
+{
+    bt_free(bt, Int->free);
+}
+
 int main(int argc, char const *argv[])
 {
     init_random();
@@ -106,6 +208,13 @@ int main(int argc, char const *argv[])
     test(new);
     test(matrix);
     test_post(graph);
+
+    test_pre(bt);
+    test(bt_new);
+    test(insert);
+    test(traverse);
+    test(remove);
+    test_post(bt);
 
     return 0;
 }
